@@ -48,20 +48,20 @@ export function useSimulator() {
 
       const currentCard = deck[currentIndex];
       const currentAppeal = getAppeal(currentCard);
-      const currentVLevel = voltageLevel(voltagePoints) * (isFever ? 2 : 1);
+      const rawVLevel = voltageLevel(voltagePoints);
+      const currentVLevel = rawVLevel * (isFever ? 2 : 1);
 
       const log: any = {
         turn,
         isFever,
-        card: currentCard.character,
+        card: currentCard.name || currentCard.character,
         effects: [],
-        beforeVP: voltagePoints,
+        voltageLevel: currentVLevel,
         beforeScore: totalScore,
       };
 
       for (const effect of currentCard.skill.effects) {
         if (effect.condition) {
-          const vLevel = voltageLevel(voltagePoints);
           const useCount =
             effect.condition.scope === "self"
               ? cardUseCounts.get(currentIndex) ?? 0
@@ -69,14 +69,14 @@ export function useSimulator() {
 
           if (
             effect.condition.type === "チル" &&
-            vLevel > effect.condition.value
+            rawVLevel > effect.condition.value
           ) {
             log.effects.push(`チル条件未達でスキップ`);
             continue;
           }
           if (
             effect.condition.type === "グルーヴィ" &&
-            vLevel < effect.condition.value
+            rawVLevel < effect.condition.value
           ) {
             log.effects.push(`グルーヴィ条件未達でスキップ`);
             continue;
@@ -138,7 +138,6 @@ export function useSimulator() {
         }
       }
 
-      log.voltagePoints = voltagePoints;
       log.totalScore = Math.round(totalScore);
       logs.push(log);
 

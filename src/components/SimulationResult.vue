@@ -22,7 +22,7 @@
               <li v-for="e in log.effects">{{ e }}</li>
             </ul>
           </td>
-          <td>{{ Math.round(log.voltagePoints) }}</td>
+          <td>{{ Math.round(log.voltageLevel) }}</td>
           <td>{{ log.totalScore }}</td>
         </tr>
       </tbody>
