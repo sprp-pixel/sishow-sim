@@ -4,13 +4,19 @@
     <table border="1">
       <thead>
         <tr>
-          <th>発動</th><th>Fever</th><th>効果</th><th>VP</th><th>スコア</th>
+          <th>発動</th>
+          <th>Fever</th>
+          <th>カード</th>
+          <th>効果</th>
+          <th>VP</th>
+          <th>スコア</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="log in logs" :key="log.turn">
           <td>{{ log.turn }}</td>
           <td>{{ log.isFever ? "◯" : "-" }}</td>
+          <td>{{ log.card }}</td>
           <td>
             <ul>
               <li v-for="e in log.effects">{{ e }}</li>
@@ -25,5 +31,5 @@
 </template>
 
 <script setup>
-defineProps({ logs: Array })
+defineProps({ logs: Array });
 </script>
