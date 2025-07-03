@@ -6,7 +6,9 @@ export function useSimulator() {
     let scoreBoost = 0;
     let totalScore = 0;
 
-    const excludeMap = new Map<number, number>(); // key: cardIndex, value: remaining uses before exclusion
+    const excludeMap = new Map<number, number>();
+    const cardUseCounts = new Map<number, number>();
+    let globalTurn = 0;
     let currentIndex = 0;
 
     const voltageLevel = (vp: number) => {
@@ -15,10 +17,16 @@ export function useSimulator() {
       return level - 1;
     };
 
-    const getAppeal = (card: any) =>
-      (song.attribute === "スマイル" ? card.smile : card.smile / 10) +
-      (song.attribute === "ピュア" ? card.pure : card.pure / 10) +
-      (song.attribute === "クール" ? card.cool : card.cool / 10);
+    const getAppeal = (card: any) => {
+      if (song.manualAppeal !== undefined && song.manualAppeal !== null) {
+        return song.manualAppeal;
+      }
+      return (
+        (song.attribute === "スマイル" ? card.smile : card.smile / 10) +
+        (song.attribute === "ピュア" ? card.pure : card.pure / 10) +
+        (song.attribute === "クール" ? card.cool : card.cool / 10)
+      );
+    };
 
     const getNextCardIndex = (start: number): number => {
       const len = deck.length;
@@ -32,7 +40,11 @@ export function useSimulator() {
     for (let turn = 1; turn <= song.skillActivations; turn++) {
       const isFever = song.feverSections.includes(turn);
       currentIndex = getNextCardIndex(currentIndex);
-      if (currentIndex === -1) break; // 全除外されたら終了
+      if (currentIndex === -1) break;
+
+      globalTurn++;
+      const count = cardUseCounts.get(currentIndex) ?? 0;
+      cardUseCounts.set(currentIndex, count + 1);
 
       const currentCard = deck[currentIndex];
       const currentAppeal = getAppeal(currentCard);
@@ -48,9 +60,13 @@ export function useSimulator() {
       };
 
       for (const effect of currentCard.skill.effects) {
-        // 条件付き発動（チル, グルーヴィ, 回数条件）
         if (effect.condition) {
           const vLevel = voltageLevel(voltagePoints);
+          const useCount =
+            effect.condition.scope === "self"
+              ? cardUseCounts.get(currentIndex) ?? 0
+              : globalTurn;
+
           if (
             effect.condition.type === "チル" &&
             vLevel > effect.condition.value
@@ -67,14 +83,14 @@ export function useSimulator() {
           }
           if (
             effect.condition.type === "回数以下" &&
-            turn > effect.condition.value
+            useCount > effect.condition.value
           ) {
             log.effects.push(`回数条件未達でスキップ`);
             continue;
           }
           if (
             effect.condition.type === "回数以上" &&
-            turn < effect.condition.value
+            useCount < effect.condition.value
           ) {
             log.effects.push(`回数条件未達でスキップ`);
             continue;
@@ -82,10 +98,11 @@ export function useSimulator() {
         }
 
         if (effect.type === "ボルテージゲイン") {
-          const gain = effect.value * (1 + voltageBoost / 100);
+          const applyBoost = effect.value >= 0;
+          const gain = effect.value * (applyBoost ? 1 + voltageBoost / 100 : 1);
           voltagePoints += gain;
-          log.effects.push(`ボルテージ+${gain}`);
-          voltageBoost = 0;
+          log.effects.push(`ボルテージ${gain >= 0 ? "+" : ""}${gain}`);
+          if (applyBoost) voltageBoost = 0;
         } else if (effect.type === "ボルテージブースト") {
           voltageBoost += effect.value;
           log.effects.push(`ボルテージブースト+${effect.value}%`);
@@ -95,7 +112,7 @@ export function useSimulator() {
             (effect.value / 100) *
             (1 + scoreBoost / 100) *
             (1 + currentVLevel / 10) *
-            (1 + song.masteryLevel / 10);
+            (1 + song.masteryLevel / 100);
           totalScore += score;
           log.effects.push(`スコア+${Math.round(score)}`);
           scoreBoost = 0;
